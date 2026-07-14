@@ -3,7 +3,7 @@ import psutil, sys, time, os, datetime
 TARGET_NAMES = {"python.exe", "pythonw.exe"}
 PROC_LIMIT = 6144 * 1024 * 1024  # 6 GB
 RAM_CRIT_PCT = 97.0
-RAM_CRIT_AVAIL = 512 * 1024 * 1024  # < 512 MB free
+RAM_CRIT_AVAIL = 256 * 1024 * 1024  # < 256 MB free
 LOG_FILE = "watchdog.log"
 POLL = 0.5
 KILL_COOLDOWN = 5.0
