@@ -26,7 +26,7 @@ def log(msg: str):
 def mem_of(p: psutil.Process) -> int:
     mi = p.memory_info()
     if IS_WIN:
-        return getattr(mi, "private", mi.rss)
+        return max(getattr(mi, "private", 0), mi.rss)
     return mi.rss
 
 
@@ -67,6 +67,17 @@ def kill(p: psutil.Process, mem: int, reason: str) -> bool:
         return False
 
 
+def log_top_ram(n: int = 5):
+    procs = []
+    for p in psutil.process_iter(["name", "memory_info"]):
+        mi = p.info["memory_info"]
+        if mi is not None:
+            procs.append((mi.rss, p.info["name"] or "?", p.pid))
+    procs.sort(reverse=True)
+    top = ", ".join(f"{name} pid={pid} {rss / 1e6:.0f}MB" for rss, name, pid in procs[:n])
+    log(f"top{n} RAM: {top}")
+
+
 def ram_critical():
     vm = psutil.virtual_memory()
     if vm.percent >= RAM_CRIT_PCT:
@@ -96,12 +107,19 @@ def main():
             if not killed:
                 reason = ram_critical()
                 if reason:
-                    if targets:
-                        p, mem = max(targets, key=lambda t: t[1])
-                        log(f"CRITICAL: {reason}")
+                    log(f"CRITICAL: {reason}")
+                    log_top_ram()
+                    fresh = []
+                    for p, _ in targets:
+                        try:
+                            fresh.append((p, mem_of(p)))
+                        except psutil.Error:
+                            continue
+                    if fresh:
+                        p, mem = max(fresh, key=lambda t: t[1])
                         killed = kill(p, mem, reason)
                     else:
-                        log(f"CRITICAL: {reason}, but no python processes to kill")
+                        log("no python processes to kill")
 
         elif ram_critical() or any(m > PROC_LIMIT for _, m in targets):
             log(f"still critical, waiting cooldown "
